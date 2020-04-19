@@ -1,0 +1,5 @@
+# mtree index
+comment = 'mtree index'
+default_version = '0.0.1'
+relocatable = true
+module_pathname = '$libdir/mtree'
