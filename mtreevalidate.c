@@ -170,7 +170,6 @@ mtreevalidate(Oid opclassoid)
 		Form_pg_amop oprform = (Form_pg_amop) GETSTRUCT(oprtup);
 		Oid			op_rettype;
 
-		/* TODO: Check that only allowed strategy numbers exist */
 		if (oprform->amopstrategy < 1)
 		{
 			ereport(INFO,

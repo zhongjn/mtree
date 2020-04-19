@@ -216,6 +216,7 @@ mtreerescan(IndexScanDesc scan, ScanKey key, int nkeys,
 
 	so->firstCall = true;
 
+	// TODO: this should be disabled
 	/* Update scan key, if a new one is given */
 	if (key && scan->numberOfKeys > 0)
 	{
