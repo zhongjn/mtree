@@ -17,13 +17,13 @@ bool mtree_consistent(MTREESTATE* state, MTREEENTRY *entry, Datum arg, StrategyN
     else
     {
         // consider distance to parent
-        Datum dist = FunctionCall5(state->distanceFn, );
-        float4 fdist = DatumGetFloat4(dist);
-        float4 radius = 0; // TODO
-        if (fdist <= radius)
-        {
-            return true;
-        }
+        // Datum dist = FunctionCall5(state->distanceFn, );
+        // float4 fdist = DatumGetFloat4(dist);
+        // float4 radius = 0; // TODO
+        // if (fdist <= radius)
+        // {
+        //     return true;
+        // }
     }
     return false;
 }                      
