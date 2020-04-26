@@ -24,7 +24,7 @@
  *-------------------------------------------------------------------------
  */
 #include "postgres.h"
-
+#include "mtreegistfunc.h"
 #include "mtree_private.h"
 #include "utils/rel.h"
 
@@ -378,18 +378,20 @@ genericPickSplit(MTREESTATE *mtreestate, MTreeEntryVector *entryvec, MTREE_SPLIT
 	evec->n = v->spl_nleft;
 	memcpy(evec->vector, entryvec->vector + FirstOffsetNumber,
 		   sizeof(MTREEENTRY) * evec->n);
-	v->spl_ldatum = FunctionCall2Coll(&mtreestate->unionFn[attno],
-									  mtreestate->supportCollation[attno],
-									  PointerGetDatum(evec),
-									  PointerGetDatum(&nbytes));
+	// v->spl_ldatum = FunctionCall2Coll(&mtreestate->unionFn[attno],
+	// 								  mtreestate->supportCollation[attno],
+	// 								  PointerGetDatum(evec),
+	// 								  PointerGetDatum(&nbytes));
+	v->spl_ldatum = mtree_union(mtreestate, evec, &nbytes);
 
 	evec->n = v->spl_nright;
 	memcpy(evec->vector, entryvec->vector + FirstOffsetNumber + v->spl_nleft,
 		   sizeof(MTREEENTRY) * evec->n);
-	v->spl_rdatum = FunctionCall2Coll(&mtreestate->unionFn[attno],
-									  mtreestate->supportCollation[attno],
-									  PointerGetDatum(evec),
-									  PointerGetDatum(&nbytes));
+	// v->spl_rdatum = FunctionCall2Coll(&mtreestate->unionFn[attno],
+	// 								  mtreestate->supportCollation[attno],
+	// 								  PointerGetDatum(evec),
+	// 								  PointerGetDatum(&nbytes));
+	v->spl_rdatum = mtree_union(mtreestate, evec, &nbytes);
 }
 
 /*
@@ -430,10 +432,11 @@ mtreeUserPicksplit(Relation r, MTreeEntryVector *entryvec, int attno, MTreeSplit
 	 * Let the opclass-specific PickSplit method do its thing.  Note that at
 	 * this point we know there are no null keys in the entryvec.
 	 */
-	FunctionCall2Coll(&mtreestate->picksplitFn[attno],
-					  mtreestate->supportCollation[attno],
-					  PointerGetDatum(entryvec),
-					  PointerGetDatum(sv));
+	// FunctionCall2Coll(&mtreestate->picksplitFn[attno],
+	// 				  mtreestate->supportCollation[attno],
+	// 				  PointerGetDatum(entryvec),
+	// 				  PointerGetDatum(sv));
+	mtree_picksplit(mtreestate, entryvec, sv);			  
 
 	if (sv->spl_nleft == 0 || sv->spl_nright == 0)
 	{

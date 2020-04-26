@@ -15,6 +15,7 @@
 #include "postgres.h"
 
 #include "access/genam.h"
+#include "mtreegistfunc.h"
 #include "mtree_private.h"
 #include "access/relscan.h"
 #include "lib/pairingheap.h"
@@ -160,6 +161,7 @@ mtreeindex_keytest(IndexScanDesc scan,
 	}
 
 	/* Check whether it matches according to the Consistent functions */
+	Assert(keySize <= 1);
 	while (keySize > 0)
 	{
 		Datum		datum;
@@ -218,14 +220,19 @@ mtreeindex_keytest(IndexScanDesc scan,
 			 * in case the Consistent function forgets to set it.
 			 */
 			recheck = true;
-
-			test = FunctionCall5Coll(&key->sk_func,
-									 key->sk_collation,
-									 PointerGetDatum(&de),
-									 key->sk_argument,
-									 Int16GetDatum(key->sk_strategy),
-									 ObjectIdGetDatum(key->sk_subtype),
-									 PointerGetDatum(&recheck));
+			test = mtree_consistent(mtreestate, &de, 
+									key->sk_argument, 
+									key->sk_strategy, 
+									key->sk_subtype, 
+									&recheck);
+			
+			// test = FunctionCall5Coll(&key->sk_func,
+			// 						 key->sk_collation,
+			// 						 PointerGetDatum(&de),
+			// 						 key->sk_argument,
+			// 						 Int16GetDatum(key->sk_strategy),
+			// 						 ObjectIdGetDatum(key->sk_subtype),
+			// 						 PointerGetDatum(&recheck));
 
 			if (!DatumGetBool(test))
 				return false;
@@ -240,6 +247,7 @@ mtreeindex_keytest(IndexScanDesc scan,
 	key = scan->orderByData;
 	distance_p = so->distances;
 	keySize = scan->numberOfOrderBys;
+	Assert(keySize <= 1);
 	while (keySize > 0)
 	{
 		Datum		datum;
@@ -795,10 +803,4 @@ bool
 mtreecanreturn(Relation index, int attno)
 {
 	return false;
-	// if (attno > IndexRelationGetNumberOfKeyAttributes(index) ||
-	// 	OidIsValid(index_getprocid(index, attno, MTREE_FETCH_PROC)) ||
-	// 	!OidIsValid(index_getprocid(index, attno, MTREE_COMPRESS_PROC)))
-	// 	return true;
-	// else
-	// 	return false;
 }

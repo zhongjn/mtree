@@ -216,10 +216,10 @@ mtreerescan(IndexScanDesc scan, ScanKey key, int nkeys,
 
 	so->firstCall = true;
 
-	// TODO: this should be disabled
 	/* Update scan key, if a new one is given */
 	if (key && scan->numberOfKeys > 0)
 	{
+		Assert(scan->numberOfKeys == 1);
 		void	  **fn_extras = NULL;
 
 		/*
@@ -258,9 +258,9 @@ mtreerescan(IndexScanDesc scan, ScanKey key, int nkeys,
 			 * Copy consistent support function to ScanKey structure instead
 			 * of function implementing filtering operator.
 			 */
-			fmgr_info_copy(&(skey->sk_func),
-						   &(so->mtreestate->consistentFn[skey->sk_attno - 1]),
-						   so->mtreestate->scanCxt);
+			//	fmgr_info_copy(&(skey->sk_func),
+			//				   &(so->mtreestate->consistentFn[skey->sk_attno - 1]),
+			//				   so->mtreestate->scanCxt);
 
 			/* Restore prior fn_extra pointers, if not first time */
 			if (!first_time)
@@ -280,6 +280,7 @@ mtreerescan(IndexScanDesc scan, ScanKey key, int nkeys,
 	/* Update order-by key, if a new one is given */
 	if (orderbys && scan->numberOfOrderBys > 0)
 	{
+		Assert(scan->numberOfOrderBys == 1);
 		void	  **fn_extras = NULL;
 
 		/* As above, preserve fn_extra if not first time through */
@@ -305,7 +306,7 @@ mtreerescan(IndexScanDesc scan, ScanKey key, int nkeys,
 		for (i = 0; i < scan->numberOfOrderBys; i++)
 		{
 			ScanKey		skey = scan->orderByData + i;
-			FmgrInfo   *finfo = &(so->mtreestate->distanceFn[skey->sk_attno - 1]);
+			FmgrInfo   *finfo = &(so->mtreestate->distanceFn);
 
 			/* Check we actually have a distance function ... */
 			if (!OidIsValid(finfo->fn_oid))

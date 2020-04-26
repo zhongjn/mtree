@@ -27,7 +27,8 @@
  * amproc indexes for MTree indexes.
  */
 #define MTREE_DISTANCE_PROC				1
-#define MTREENProcs						1
+#define MTREE_EQUAL_PROC				2
+#define MTREENProcs						2
 
 /*
  * Page opaque data in a MTree index page.

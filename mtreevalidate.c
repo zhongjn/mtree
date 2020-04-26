@@ -106,30 +106,6 @@ mtreevalidate(Oid opclassoid)
 		/* Check procedure numbers and function signatures */
 		switch (procform->amprocnum)
 		{
-			case MTREE_CONSISTENT_PROC:
-				ok = check_amproc_signature(procform->amproc, BOOLOID, false,
-											5, 5, INTERNALOID, opcintype,
-											INT2OID, OIDOID, INTERNALOID);
-				break;
-			case MTREE_UNION_PROC:
-				ok = check_amproc_signature(procform->amproc, opckeytype, false,
-											2, 2, INTERNALOID, INTERNALOID);
-				break;
-			case MTREE_COMPRESS_PROC:
-			case MTREE_DECOMPRESS_PROC:
-			case MTREE_FETCH_PROC:
-				ok = check_amproc_signature(procform->amproc, INTERNALOID, true,
-											1, 1, INTERNALOID);
-				break;
-			case MTREE_PENALTY_PROC:
-				ok = check_amproc_signature(procform->amproc, INTERNALOID, true,
-											3, 3, INTERNALOID,
-											INTERNALOID, INTERNALOID);
-				break;
-			case MTREE_PICKSPLIT_PROC:
-				ok = check_amproc_signature(procform->amproc, INTERNALOID, true,
-											2, 2, INTERNALOID, INTERNALOID);
-				break;
 			case MTREE_EQUAL_PROC:
 				ok = check_amproc_signature(procform->amproc, INTERNALOID, false,
 											3, 3, opckeytype, opckeytype,
@@ -257,8 +233,7 @@ mtreevalidate(Oid opclassoid)
 		if (opclassgroup &&
 			(opclassgroup->functionset & (((uint64) 1) << i)) != 0)
 			continue;			/* got it */
-		if (i == MTREE_DISTANCE_PROC || i == MTREE_FETCH_PROC ||
-			i == MTREE_COMPRESS_PROC || i == MTREE_DECOMPRESS_PROC)
+		if (i == MTREE_DISTANCE_PROC)
 			continue;			/* optional methods */
 		ereport(INFO,
 				(errcode(ERRCODE_INVALID_OBJECT_DEFINITION),

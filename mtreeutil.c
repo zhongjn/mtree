@@ -14,7 +14,7 @@
 #include "postgres.h"
 
 #include <math.h>
-
+#include "mtreegistfunc.h"
 #include "mtree_private.h"
 #include "access/htup_details.h"
 #include "access/reloptions.h"
@@ -199,11 +199,11 @@ mtreeMakeUnionItVec(MTREESTATE *mtreestate, IndexTuple *itvec, int len,
 			}
 			
 			/* Make union and store in attr array */
-			attr[i] = FunctionCall2Coll(&mtreestate->unionFn[i],
-										mtreestate->supportCollation[i],
-										PointerGetDatum(evec),
-										PointerGetDatum(&attrsize));
-
+			// attr[i] = FunctionCall2Coll(&mtreestate->unionFn[i],
+			// 							mtreestate->supportCollation[i],
+			// 							PointerGetDatum(evec),
+			// 							PointerGetDatum(&attrsize));
+			attr[i] = mtree_union(mtreestate, evec, &attrsize);
 			isnull[i] = false;
 		}
 	}
@@ -268,10 +268,11 @@ mtreeMakeUnionKey(MTREESTATE *mtreestate, int attno,
 		}
 
 		*dstisnull = false;
-		*dst = FunctionCall2Coll(&mtreestate->unionFn[attno],
-								 mtreestate->supportCollation[attno],
-								 PointerGetDatum(evec),
-								 PointerGetDatum(&dstsize));
+		// *dst = FunctionCall2Coll(&mtreestate->unionFn[attno],
+		// 						 mtreestate->supportCollation[attno],
+		// 						 PointerGetDatum(evec),
+		// 						 PointerGetDatum(&dstsize));
+		*dst = mtree_union(mtreestate, evec, &dstsize);
 	}
 }
 
@@ -279,8 +280,8 @@ bool
 mtreeKeyIsEQ(MTREESTATE *mtreestate, int attno, Datum a, Datum b)
 {
 	bool		result;
-
-	FunctionCall3Coll(&mtreestate->equalFn[attno],
+	Assert(attno == 1);
+	FunctionCall3Coll(&mtreestate->equalFn,
 					  mtreestate->supportCollation[attno],
 					  a, b,
 					  PointerGetDatum(&result));
@@ -548,22 +549,8 @@ mtreedentryinit(MTREESTATE *mtreestate, int nkey, MTREEENTRY *e,
 {
 	if (!isNull)
 	{
-		MTREEENTRY  *dep;
-
 		mtreeentryinit(*e, k, r, pg, o, l);
-
-		/* there may not be a decompress function in opclass */
-		if (!OidIsValid(mtreestate->decompressFn[nkey].fn_oid))
-			return;
-
-		dep = (MTREEENTRY *)
-			DatumGetPointer(FunctionCall1Coll(&mtreestate->decompressFn[nkey],
-											  mtreestate->supportCollation[nkey],
-											  PointerGetDatum(e)));
-		/* decompressFn may just return the given pointer */
-		if (dep != e)
-			mtreeentryinit(*e, dep->key, dep->rel, dep->page, dep->offset,
-						  dep->leafkey);
+		return;
 	}
 	else
 		mtreeentryinit(*e, (Datum) 0, r, pg, o, l);
@@ -591,14 +578,7 @@ mtreeFormTuple(MTREESTATE *mtreestate, Relation r,
 
 			mtreeentryinit(centry, attdata[i], r, NULL, (OffsetNumber) 0,
 						  isleaf);
-			/* there may not be a compress function in opclass */
-			if (OidIsValid(mtreestate->compressFn[i].fn_oid))
-				cep = (MTREEENTRY *)
-					DatumGetPointer(FunctionCall1Coll(&mtreestate->compressFn[i],
-													  mtreestate->supportCollation[i],
-													  PointerGetDatum(&centry)));
-			else
-				cep = &centry;
+			cep = &centry;
 			compatt[i] = cep->key;
 		}
 	}
@@ -635,18 +615,8 @@ mtreeFormTuple(MTREESTATE *mtreestate, Relation r,
 static Datum
 mtreeFetchAtt(MTREESTATE *mtreestate, int nkey, Datum k, Relation r)
 {
-	MTREEENTRY	fentry;
-	MTREEENTRY  *fep;
-
-	mtreeentryinit(fentry, k, r, NULL, (OffsetNumber) 0, false);
-
-	fep = (MTREEENTRY *)
-		DatumGetPointer(FunctionCall1Coll(&mtreestate->fetchFn[nkey],
-										  mtreestate->supportCollation[nkey],
-										  PointerGetDatum(&fentry)));
-
-	/* fetchFn set 'key', return it to the caller */
-	return fep->key;
+	// NOTE: fetch is useless
+	return 0;
 }
 
 /*
@@ -667,34 +637,10 @@ mtreeFetchTuple(MTREESTATE *mtreestate, Relation r, IndexTuple tuple)
 
 		datum = index_getattr(tuple, i + 1, mtreestate->leafTupdesc, &isnull[i]);
 
-		if (mtreestate->fetchFn[i].fn_oid != InvalidOid)
-		{
-			if (!isnull[i])
-				fetchatt[i] = mtreeFetchAtt(mtreestate, i, datum, r);
-			else
-				fetchatt[i] = (Datum) 0;
-		}
-		else if (mtreestate->compressFn[i].fn_oid == InvalidOid)
-		{
-			/*
-			 * If opclass does not provide compress method that could change
-			 * original value, att is necessarily stored in original form.
-			 */
-			if (!isnull[i])
-				fetchatt[i] = datum;
-			else
-				fetchatt[i] = (Datum) 0;
-		}
+		if (!isnull[i])
+			fetchatt[i] = datum;
 		else
-		{
-			/*
-			 * Index-only scans not supported for this column. Since the
-			 * planner chose an index-only scan anyway, it is not interested
-			 * in this column, and we can replace it with a NULL.
-			 */
-			isnull[i] = true;
 			fetchatt[i] = (Datum) 0;
-		}
 	}
 
 	/*
@@ -716,15 +662,10 @@ mtreepenalty(MTREESTATE *mtreestate, int attno,
 			MTREEENTRY *add, bool isNullAdd)
 {
 	float		penalty = 0.0;
-
-	if (mtreestate->penaltyFn[attno].fn_strict == false ||
-		(isNullOrig == false && isNullAdd == false))
+	bool		strict = false; // TODO: is our penalty function strict?
+	if (strict || (isNullOrig == false && isNullAdd == false))
 	{
-		FunctionCall3Coll(&mtreestate->penaltyFn[attno],
-						  mtreestate->supportCollation[attno],
-						  PointerGetDatum(orig),
-						  PointerGetDatum(add),
-						  PointerGetDatum(&penalty));
+		mtree_penalty(mtreestate, orig, add, &penalty);
 		/* disallow negative or NaN penalty */
 		if (isnan(penalty) || penalty < 0.0)
 			penalty = 0.0;
@@ -954,9 +895,6 @@ mtreeproperty(Oid index_oid, int attno,
 		case AMPROP_DISTANCE_ORDERABLE:
 			procno = MTREE_DISTANCE_PROC;
 			break;
-		case AMPROP_RETURNABLE:
-			procno = MTREE_FETCH_PROC;
-			break;
 		default:
 			return false;
 	}
@@ -988,14 +926,14 @@ mtreeproperty(Oid index_oid, int attno,
 	 * Special case: even without a fetch function, AMPROP_RETURNABLE is true
 	 * if the opclass has no compress function.
 	 */
-	if (prop == AMPROP_RETURNABLE && !*res)
-	{
-		*res = !SearchSysCacheExists4(AMPROCNUM,
-									  ObjectIdGetDatum(opfamily),
-									  ObjectIdGetDatum(opcintype),
-									  ObjectIdGetDatum(opcintype),
-									  Int16GetDatum(MTREE_COMPRESS_PROC));
-	}
+	//	if (prop == AMPROP_RETURNABLE && !*res)
+	//	{
+	//		*res = !SearchSysCacheExists4(AMPROCNUM,
+	//											ObjectIdGetDatum(opfamily),
+	//											ObjectIdGetDatum(opcintype),
+	//											ObjectIdGetDatum(opcintype),
+	//											Int16GetDatum(MTREE_COMPRESS_PROC));
+	//	}
 
 	*isnull = false;
 

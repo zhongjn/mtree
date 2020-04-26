@@ -83,15 +83,15 @@ typedef struct MTREESTATE
 	TupleDesc	fetchTupdesc;	/* tuple descriptor for tuples returned in an
 								 * index-only scan */
 
-	FmgrInfo	consistentFn[INDEX_MAX_KEYS];
-	FmgrInfo	unionFn[INDEX_MAX_KEYS];
-	FmgrInfo	compressFn[INDEX_MAX_KEYS];
-	FmgrInfo	decompressFn[INDEX_MAX_KEYS];
-	FmgrInfo	penaltyFn[INDEX_MAX_KEYS];
-	FmgrInfo	picksplitFn[INDEX_MAX_KEYS];
-	FmgrInfo	equalFn[INDEX_MAX_KEYS];
-	FmgrInfo	distanceFn[INDEX_MAX_KEYS];
-	FmgrInfo	fetchFn[INDEX_MAX_KEYS];
+	// FmgrInfo	consistentFn[INDEX_MAX_KEYS];
+	// FmgrInfo	unionFn[INDEX_MAX_KEYS];
+	// FmgrInfo	compressFn[INDEX_MAX_KEYS];
+	// FmgrInfo	decompressFn[INDEX_MAX_KEYS];
+	// FmgrInfo	penaltyFn[INDEX_MAX_KEYS];
+	// FmgrInfo	picksplitFn[INDEX_MAX_KEYS];
+	FmgrInfo	equalFn; // useful
+	FmgrInfo	distanceFn; // useful
+	// FmgrInfo	fetchFn[INDEX_MAX_KEYS];
 
 	/* Collations to pass to the support functions */
 	Oid			supportCollation[INDEX_MAX_KEYS];
